@@ -1,0 +1,20 @@
+<META HTTP-EQUIV="refresh" CONTENT="5">
+
+<table border="1">
+<tr>
+	<td rowspan="5"><img src=./?rectified=1 id="rectifiedImage"></td></td>
+	<td><font color="green"><b>Sensor state: {{ sensor.state }}</b></font></td>
+</tr>
+<tr>
+	<td>Sensor ID: АДУ-3</td>
+</tr>
+<tr>
+	<td>Level: {{ '{0:2.1f}'.format(sensor.percent) }} %</td>
+</tr>
+<tr>
+	<td>Temperature: {{ 'Not avail' }}</td>
+</tr>
+<tr>
+	<td>Humidity: {{ 'Not avail' }}</td>
+</tr>
+</table.
