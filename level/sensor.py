@@ -73,7 +73,7 @@ class OpticalLevel(object):
         self.lowerbound = float(kwargs.get('lowerbound', '1'))
         
         if self.piMode:
-            self.camera = Camera(pi_camera=self.pimode)
+            self.camera = Camera(pi_camera=self.piMode)
         else:
             self.camera = Camera(file=self.videoFn)
         self.stream = self.camera.stream()
