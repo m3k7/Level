@@ -29,6 +29,7 @@ class Camera(object):
         if self.usePiCamera:
             for frame in self.camera.capture_continuous(self.capture, format="bgr", use_video_port=True):
                 yield 1, frame.array
+                self.capture.truncate(0)
         else:
             while 1:
 #                 Informer.info('Image captured')
