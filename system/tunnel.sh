@@ -6,4 +6,4 @@ if [ -z "$ip" ]; then
 	ip="000"
 fi
 
-autossh -f -N -R 22$ip:127.0.0.1:22 maxim@9lab.ru
+autossh -f -N -R 0.0.0.0:22$ip:127.0.0.1:22 maxim@9lab.ru

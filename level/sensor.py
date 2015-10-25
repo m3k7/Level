@@ -7,11 +7,6 @@ import tornado.gen
 
 from pycontrib.misc.coroutine import reporting_coroutine, unfailable_coroutine
 from pycontrib.misc.informer import Informer
-
-USE_X = False
-def imshow(name, image):
-    if USE_X: # and name == 'sampleFrame':
-        cv2.imshow(name, image)
         
 class DiffExtractor(object):
     
@@ -58,10 +53,10 @@ class DiffExtractor(object):
         mask = cv2.inRange(sobel, 190, 255)
         dilated = cv2.dilate(mask, np.ones((20, 20),np.uint8),iterations = 1)
         dilated = cv2.erode(dilated, np.ones((5, 50),np.uint8),iterations = 1)
-#         imshow('background', cv2.resize(np.concatenate((back, bluredFrame, diff), axis=1)*3, (40, frame.shape[0])))
-#         imshow('mask', cv2.resize(np.concatenate((sobel, mask, dilated), axis=1), (40, frame.shape[0])))
-        imshow('background', np.concatenate((back, bluredFrame, diff), axis=1))
-        imshow('mask', np.concatenate((sobel, mask, dilated), axis=1))
+#         self.imshow('background', cv2.resize(np.concatenate((back, bluredFrame, diff), axis=1)*3, (40, frame.shape[0])))
+#         self.imshow('mask', cv2.resize(np.concatenate((sobel, mask, dilated), axis=1), (40, frame.shape[0])))
+#         self.imshow('background', np.concatenate((back, bluredFrame, diff), axis=1))
+#         self.imshow('mask', np.concatenate((sobel, mask, dilated), axis=1))
         
         return dilated
     
@@ -70,8 +65,18 @@ class DiffExtractor(object):
 
 class OpticalLevel(object):
     
-    def __init__(self, cam):
-        self.stream = cam.stream()
+    def __init__(self, **kwargs):
+        self.xMode = (kwargs.get('xmode', 'False') == 'True')
+        self.piMode = (kwargs.get('pimode', 'True') == 'True')
+        self.videoFn = kwargs.get('videofn')
+        self.upperBound = float(kwargs.get('upperbound', '0'))
+        self.lowerbound = float(kwargs.get('lowerbound', '1'))
+        
+        if self.piMode:
+            self.camera = Camera(pi_camera=self.pimode)
+        else:
+            self.camera = Camera(file=self.videoFn)
+        self.stream = self.camera.stream()
         
         self.val = 0
         self.frameCounter = 0
@@ -88,12 +93,19 @@ class OpticalLevel(object):
         self.rectCrop = (int(self.rectSize[1]*0), int(self.rectSize[1]), int(self.rectSize[0]*0.4), int(self.rectSize[0]*0.6))
         self.rectCropSize = (self.rectCrop[1] - self.rectCrop[0], self.rectCrop[3] - self.rectCrop[2])
         
-        self.perspectiveTransformPointsFrom = np.array([(19, 552), (6, 265), (924, 664), (939, 265)], dtype=np.float32)
-        self.perspectiveTransformPointsTo = np.array([(self.rectSize[0], self.rectSize[1]*1.1), (0, self.rectSize[1]*1.1), (self.rectSize[0], self.rectSize[1]*0.05), (0, self.rectSize[1]*0.05)], dtype=np.float32)
-        self.perspectiveTransform = cv2.getPerspectiveTransform(self.perspectiveTransformPointsFrom, self.perspectiveTransformPointsTo)
+        self.perspectiveTransformPointsFrom = eval(kwargs.get('calibrationpoints', 'None'))
+        if self.perspectiveTransformPointsFrom:
+            self.perspectiveTransformPointsFrom = np.array(self.perspectiveTransformPointsFrom, dtype=np.float32)
+            self.perspectiveTransform = cv2.getPerspectiveTransform(self.perspectiveTransformPointsFrom, self.perspectiveTransformPointsTo)
+            self.calibrated = True
+        else:
+            self.calibrated = False
+        
+        self.perspectiveTransformPointsTo = np.array([(self.rectSize[0], self.rectSize[1]*self.lowerbound), (0, self.rectSize[1]*self.lowerbound), 
+                                                      (self.rectSize[0], self.rectSize[1]*self.upperBound), (0, self.rectSize[1]*self.upperBound)], dtype=np.float32)
+        
 
         self.colorCoef = None
-        self.calibrated = True
 
         self.colorMapDepth = 30
         self.colorMapEmpty = np.zeros((self.rectCropSize[0], self.colorMapDepth, self.rectCropSize[1], 3), dtype=np.uint8)
@@ -105,6 +117,10 @@ class OpticalLevel(object):
         
         self.levelF = open('/tmp/level.val', 'wb', 0)
         self.levelF.write(b'STARTED\n')
+        
+    def imshow(self, imName, image):
+        if self.xMode:
+            cv2.imshow(imName, image)
         
     def getSampleFrame(self, expertVal = None):
 #         frameRes = cv2.resize(self.frame, (int(self.rectified.shape[0]*self.frame.shape[1]/self.frame.shape[0]), self.rectified.shape[0]))
@@ -174,7 +190,7 @@ class OpticalLevel(object):
             else:
                 basicPoints.append(p)
                 
-        imshow('cframe', cFrame)
+        self.imshow('cframe', cFrame)
         print(basicPoints)
         if len(basicPoints) != 4:
             return None
@@ -214,7 +230,7 @@ class OpticalLevel(object):
         self.colorCoef = (255, 255, 255) / white
         return self.colorCoef
             
-        
+#     @profile
     def meassure(self, frame):
         if self.val == None:
             self.val = 0
@@ -229,7 +245,7 @@ class OpticalLevel(object):
         
         self.rectifiedFull = cv2.warpPerspective(frame, self.perspectiveTransform, self.rectSize)
         self.rectifiedFull *= self.colorCalibration()
-        imshow('rect', self.rectifiedFull)
+        self.imshow('rect', self.rectifiedFull)
         self.rectified = self.rectifiedFull[self.rectCrop[0]:self.rectCrop[1], self.rectCrop[2]:self.rectCrop[3]]
         self.rectifiedMedian = np.uint8(np.median(self.rectified, axis=1))
         self.rectifiedMedian = np.reshape(self.rectifiedMedian, (self.rectifiedMedian.shape[0], 1, 3))
@@ -318,7 +334,7 @@ class OpticalLevel(object):
                         cv2.circle(self.rectified, (0, y), 10, c)
                         break
          
-        imshow('colormap', np.concatenate((self.colorMapEmptyMedian*3, self.colorMapFilledMedian*3), axis=1))
+        self.imshow('colormap', np.concatenate((self.colorMapEmptyMedian*3, self.colorMapFilledMedian*3), axis=1))
         
         if self.staticVal != None:
             self.val = self.val*0.90 + self.staticVal*0.10
@@ -349,11 +365,13 @@ class OpticalLevel(object):
     def start(self):
         while 1:
             ret, frame = next(self.stream)
-            if ret:
-                #imshow('input', frame)
-                self.meassure(frame)
-            if USE_X:
-                imshow('sampleFrame', self.getSampleFrame())
+            if not ret:
+                return
+            
+            self.meassure(frame)
+
+            if self.xMode:
+                self.imshow('sampleFrame', self.getSampleFrame())
                 cv2.waitKey(1)
             yield tornado.gen.sleep(0.01)
         
