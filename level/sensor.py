@@ -93,6 +93,9 @@ class OpticalLevel(object):
         self.rectCrop = (int(self.rectSize[1]*0), int(self.rectSize[1]), int(self.rectSize[0]*0.4), int(self.rectSize[0]*0.6))
         self.rectCropSize = (self.rectCrop[1] - self.rectCrop[0], self.rectCrop[3] - self.rectCrop[2])
         
+        self.perspectiveTransformPointsTo = np.array([(self.rectSize[0], self.rectSize[1]*self.lowerbound), (0, self.rectSize[1]*self.lowerbound), 
+                                                      (self.rectSize[0], self.rectSize[1]*self.upperBound), (0, self.rectSize[1]*self.upperBound)], dtype=np.float32)
+        
         self.perspectiveTransformPointsFrom = eval(kwargs.get('calibrationpoints', 'None'))
         if self.perspectiveTransformPointsFrom:
             self.perspectiveTransformPointsFrom = np.array(self.perspectiveTransformPointsFrom, dtype=np.float32)
@@ -101,10 +104,6 @@ class OpticalLevel(object):
         else:
             self.calibrated = False
         
-        self.perspectiveTransformPointsTo = np.array([(self.rectSize[0], self.rectSize[1]*self.lowerbound), (0, self.rectSize[1]*self.lowerbound), 
-                                                      (self.rectSize[0], self.rectSize[1]*self.upperBound), (0, self.rectSize[1]*self.upperBound)], dtype=np.float32)
-        
-
         self.colorCoef = None
 
         self.colorMapDepth = 30
