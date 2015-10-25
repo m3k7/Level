@@ -8,9 +8,9 @@ import tornado.gen
 from pycontrib.misc.coroutine import reporting_coroutine, unfailable_coroutine
 from pycontrib.misc.informer import Informer
 
-USE_X = True
+USE_X = False
 def imshow(name, image):
-    if USE_X and name == 'sampleFrame':
+    if USE_X: # and name == 'sampleFrame':
         cv2.imshow(name, image)
         
 class DiffExtractor(object):
@@ -88,12 +88,12 @@ class OpticalLevel(object):
         self.rectCrop = (int(self.rectSize[1]*0), int(self.rectSize[1]), int(self.rectSize[0]*0.4), int(self.rectSize[0]*0.6))
         self.rectCropSize = (self.rectCrop[1] - self.rectCrop[0], self.rectCrop[3] - self.rectCrop[2])
         
-        self.perspectiveTransformPointsFrom = np.array([(500, 1), (500, 300), (1, 1), (1, 300)], dtype=np.float32)
-        self.perspectiveTransformPointsTo = np.array([(self.rectSize[0], self.rectSize[1]*0.95), (0, self.rectSize[1]*0.95), (self.rectSize[0], self.rectSize[1]*0.06), (0, self.rectSize[1]*0.06)], dtype=np.float32)
+        self.perspectiveTransformPointsFrom = np.array([(19, 552), (6, 265), (924, 664), (939, 265)], dtype=np.float32)
+        self.perspectiveTransformPointsTo = np.array([(self.rectSize[0], self.rectSize[1]*1.1), (0, self.rectSize[1]*1.1), (self.rectSize[0], self.rectSize[1]*0.05), (0, self.rectSize[1]*0.05)], dtype=np.float32)
         self.perspectiveTransform = cv2.getPerspectiveTransform(self.perspectiveTransformPointsFrom, self.perspectiveTransformPointsTo)
 
         self.colorCoef = None
-        self.calibrated = False
+        self.calibrated = True
 
         self.colorMapDepth = 30
         self.colorMapEmpty = np.zeros((self.rectCropSize[0], self.colorMapDepth, self.rectCropSize[1], 3), dtype=np.uint8)
@@ -245,7 +245,7 @@ class OpticalLevel(object):
         changes = scipy.spatial.distance.euclidean(backImage.reshape(backImage.shape[0]*backImage.shape[1]*3), self.rectifiedMedian.reshape(self.rectifiedMedian.shape[0]*self.rectifiedMedian.shape[1]*3))
         print(changes)
 #         changes = 10
-        if changes > 200:
+        if changes > 400:
             return self.val
         
         m = cv2.moments(diff, 1)
@@ -350,7 +350,7 @@ class OpticalLevel(object):
         while 1:
             ret, frame = next(self.stream)
             if ret:
-                imshow('input', frame)
+                #imshow('input', frame)
                 self.meassure(frame)
             if USE_X:
                 imshow('sampleFrame', self.getSampleFrame())
