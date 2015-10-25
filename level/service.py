@@ -38,7 +38,7 @@ class HttpFace(HttpTemplateRequestHandler):
 if __name__ == '__main__':
     env = Environment()
         
-    stream = Camera(file='/home/maxim/dev/level/records/video3.h264')
+    stream = Camera(pi_camera=True) #file='/home/maxim/dev/level/records/video3.h264')
     sensor = OpticalLevel(stream)
     sensor.start()
         
