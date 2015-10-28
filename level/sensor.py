@@ -4,6 +4,7 @@ from camera import Camera
 import numpy as np
 import scipy.spatial.distance
 import tornado.gen
+from random import randint
 
 from pycontrib.misc.coroutine import reporting_coroutine, unfailable_coroutine
 from pycontrib.misc.informer import Informer
@@ -53,10 +54,9 @@ class DiffExtractor(object):
         mask = cv2.inRange(sobel, 190, 255)
         dilated = cv2.dilate(mask, np.ones((20, 20),np.uint8),iterations = 1)
         dilated = cv2.erode(dilated, np.ones((5, 50),np.uint8),iterations = 1)
-#         self.imshow('background', cv2.resize(np.concatenate((back, bluredFrame, diff), axis=1)*3, (40, frame.shape[0])))
-#         self.imshow('mask', cv2.resize(np.concatenate((sobel, mask, dilated), axis=1), (40, frame.shape[0])))
-#         self.imshow('background', np.concatenate((back, bluredFrame, diff), axis=1))
-#         self.imshow('mask', np.concatenate((sobel, mask, dilated), axis=1))
+        
+#         cv2.imshow('background', np.concatenate((back, bluredFrame, diff), axis=1))
+#         cv2.imshow('mask', np.concatenate((sobel, mask, dilated), axis=1))
         
         return dilated
     
@@ -272,7 +272,19 @@ class OpticalLevel(object):
         else:
             self.motionVal = None
 
-        if self.motionVal:
+        if not self.motionVal:
+            if randint(0,20) == 0:
+                #delearn color detector
+                for y in range(self.rectified.shape[0]):
+                    self.colorMapEmpty[y, self.colorMapEmptyIndex[y]] = np.zeros((self.rectified.shape[1],3), dtype=np.ubyte)
+                    self.colorMapEmptyIndex[y] += 1
+                    self.colorMapEmptyIndex[y] %= self.colorMapDepth
+                    self.colorMapFilled[y, self.colorMapFilledIndex[y]] = np.zeros((self.rectified.shape[1],3), dtype=np.ubyte)
+                    self.colorMapFilledIndex[y] += 1
+                    self.colorMapFilledIndex[y] %= self.colorMapDepth
+                self.colorMapEmptyMedian = np.uint8(np.median(self.colorMapEmpty, axis=1))
+                self.colorMapFilledMedian = np.uint8(np.median(self.colorMapFilled, axis=1))
+        else:
             #learn color detector            
             for y in range(self.rectified.shape[0]):
                 if abs(y-self.motionVal)<5:
@@ -294,7 +306,7 @@ class OpticalLevel(object):
         emptyYMedian = np.median(self.colorMapEmptyMedian, axis=0)
         filledYMedian = np.median(self.colorMapFilledMedian, axis=0)
         distBetween, distToEmpty, distToFilled = None, None, None
-        if True: #np.count_nonzero(emptyYMedian) != 0 and np.count_nonzero(filledYMedian) != 0:
+        if True: #np.count_nonzero(emptyYMedian) > self.rectified.shape[0]/5 and np.count_nonzero(filledYMedian) > self.rectified.shape[0]/5:
             for y in range(self.rectCropSize[0]):
     
                 imageY = self.rectified[y]
@@ -312,13 +324,13 @@ class OpticalLevel(object):
                 imageY = imageY.reshape(self.rectCropSize[1]*3)
                 emptyY = emptyY.reshape(self.rectCropSize[1]*3)
                 filledY = filledY.reshape(self.rectCropSize[1]*3)
-                distBetween = scipy.spatial.distance.euclidean(filledY, emptyY)
+#                 distBetween = scipy.spatial.distance.euclidean(filledY, emptyY)
                 distToEmpty = scipy.spatial.distance.euclidean(imageY, emptyY)
                 distToFilled = scipy.spatial.distance.euclidean(imageY, filledY)
                     
                 #triangle check
-                if not distBetween or distToEmpty + distToFilled > distBetween*5:
-                    continue
+#                 if not distBetween or distToEmpty + distToFilled > distBetween*3:
+#                     continue
                 if distToEmpty > distToFilled:
                     filledMask[y]=255
           
@@ -335,7 +347,7 @@ class OpticalLevel(object):
          
         self.imshow('colormap', np.concatenate((self.colorMapEmptyMedian*3, self.colorMapFilledMedian*3), axis=1))
         
-        if self.staticVal != None:
+        if self.staticVal != self.rectified.shape[0]:
             self.val = self.val*0.90 + self.staticVal*0.10
             self.levelF.write('{0}\n'.format(self.percent).encode())
 
@@ -362,11 +374,15 @@ class OpticalLevel(object):
     @unfailable_coroutine
     @tornado.gen.coroutine
     def start(self):
+        cnt = 0
         while 1:
             ret, frame = next(self.stream)
             if not ret:
                 return
-            
+            cnt += 1
+            cnt %= 3
+            if cnt:
+                continue
             self.meassure(frame)
 
             if self.xMode:
