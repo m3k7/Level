@@ -387,6 +387,6 @@ class OpticalLevel(object):
 
             if self.xMode:
                 self.imshow('sampleFrame', self.getSampleFrame())
-                cv2.waitKey(1)
+                cv2.waitKey(100)
             yield tornado.gen.sleep(0.01)
         
