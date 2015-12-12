@@ -274,11 +274,13 @@ class OpticalLevel(object):
             l = cv2.cvtColor(np.uint8(np.absolute(cv2.Sobel(self.rectified, cv2.CV_64F, 2, 0, ksize=3))*0.4), cv2.COLOR_BGR2GRAY)
             mask = cv2.inRange(l, 20, 255)
             dilated = cv2.dilate(mask, np.ones((4, 10),np.uint8),iterations = 1)
-            dilated = cv2.erode(dilated, np.ones((25, 20),np.uint8),iterations = 1)
+            dilated = cv2.erode(dilated, np.ones((100, 20),np.uint8),iterations = 1)
             dilated = cv2.dilate(dilated, np.ones((self.rectified.shape[1]/2, 2),np.uint8),iterations = 4)
             self.imshow('1', dilated)
-            staticVal2 = np.argwhere(dilated[:,dilated.shape[1]/2])[-1][0]
-            self.motionVal = staticVal2
+            indexes = np.argwhere(dilated[:,dilated.shape[1]/2])
+            if indexes.any():
+                staticVal2 = np.argwhere(dilated[:,dilated.shape[1]/2])[-1][0]
+                self.motionVal = staticVal2
 
 #         if not self.motionVal:
 #             if randint(0,20) == 0:
@@ -372,7 +374,10 @@ class OpticalLevel(object):
 #         self.imshow('colormap', np.concatenate((self.rectified*2, self.colorMapEmptyMedian*2, self.colorMapFilledMedian*2), axis=1))
         
         if self.motionVal != self.rectified.shape[0]:
-            self.val = self.val*0.90 + self.motionVal*0.10
+            if self.val != None:
+                self.val = self.val*0.90 + self.motionVal*0.10
+            else:
+                self.val = self.motionVal
             self.levelF.write('{0}\n'.format(self.percent).encode())
 
         return self.val
