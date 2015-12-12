@@ -239,7 +239,7 @@ class OpticalLevel(object):
         
         self.frameCounter += 1
         self.frame = frame
-        if not self.calibrated or self.frameCounter % 200 == 0:
+        if not self.calibrated or self.frameCounter % 200 == 10:
             self.calibrate()
 
         if not self.calibrated:
@@ -274,8 +274,8 @@ class OpticalLevel(object):
             l = cv2.cvtColor(np.uint8(np.absolute(cv2.Sobel(self.rectified, cv2.CV_64F, 2, 0, ksize=3))*0.4), cv2.COLOR_BGR2GRAY)
             mask = cv2.inRange(l, 20, 255)
             dilated = cv2.dilate(mask, np.ones((4, 10),np.uint8),iterations = 1)
-            dilated = cv2.erode(dilated, np.ones((100, 30),np.uint8),iterations = 1)
-            dilated = cv2.dilate(dilated, np.ones((25, self.rectified.shape[1]/2),np.uint8),iterations = 4)
+            dilated = cv2.erode(dilated, np.ones((60, 30),np.uint8),iterations = 1)
+            dilated = cv2.dilate(dilated, np.ones((15, self.rectified.shape[1]/2),np.uint8),iterations = 4)
             self.imshow('1', dilated)
             indexes = np.argwhere(dilated[:,dilated.shape[1]/2])
             if indexes.any():
@@ -395,7 +395,7 @@ class OpticalLevel(object):
     def state(self):
         if not self.calibrated:
             return 'Calibrating'
-        if not self.val:
+        if self.val == None:
             return 'Learning'
         return 'Levelling'
         
