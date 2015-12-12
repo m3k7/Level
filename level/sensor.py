@@ -281,6 +281,8 @@ class OpticalLevel(object):
             if indexes.any():
                 staticVal2 = np.argwhere(dilated[:,dilated.shape[1]/2])[-1][0]
                 self.motionVal = staticVal2
+            else:
+                self.motionVal = 0
 
 #         if not self.motionVal:
 #             if randint(0,20) == 0:
