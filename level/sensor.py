@@ -50,7 +50,7 @@ class DiffExtractor(object):
             back = self._backExt.get()
         self._counter += 1
         sobel = cv2.cvtColor(np.uint8(np.absolute(cv2.Sobel(cv2.absdiff(back,bluredFrame), cv2.CV_64F, 0, 1, ksize=5))), cv2.COLOR_BGR2GRAY)
-        cv2.imshow('sobel', sobel)
+#         cv2.imshow('sobel', sobel)
 #         diff = cv2.absdiff(back,bluredFrame)
         mask = cv2.inRange(sobel, 190, 255)
         dilated = cv2.dilate(mask, np.ones((20, 20),np.uint8),iterations = 1)
@@ -315,7 +315,7 @@ class OpticalLevel(object):
         filledMask = np.zeros(self.rectCropSize[0], dtype=np.ubyte)
         emptyYMedian = np.median(self.colorMapEmptyMedian, axis=0)
         filledYMedian = np.median(self.colorMapFilledMedian, axis=0)
-        imageMedian = np.median(self.rectified, axis=1)
+#         imageMedian = np.median(self.rectified, axis=1)
         
         distBetween, distToEmpty, distToFilled = None, None, None
         disp =  np.zeros((self.rectified.shape[0]), dtype=np.ubyte)
@@ -323,10 +323,10 @@ class OpticalLevel(object):
             for y in range(self.rectCropSize[0]):
     
                 imageY = self.rectified[y]
-                imageMedianY = imageMedian[y]
+#                 imageMedianY = imageMedian[y]
                 
 #                 dispY = scipy.spatial.distance.cdist(imageY, imageMedianY)
-                imageMedianY = np.full_like(imageY, imageMedianY)
+#                 imageMedianY = np.full_like(imageY, imageMedianY)
                 
                 
                 if (np.count_nonzero(self.colorMapEmptyMedian[y]) != 0):
@@ -342,7 +342,7 @@ class OpticalLevel(object):
                 
                 
                 imageY = imageY.reshape(self.rectCropSize[1]*3)
-                imageMedianY = imageMedianY.reshape(self.rectCropSize[1]*3)
+#                 imageMedianY = imageMedianY.reshape(self.rectCropSize[1]*3)
                 emptyY = emptyY.reshape(self.rectCropSize[1]*3)
                 filledY = filledY.reshape(self.rectCropSize[1]*3)
 #                 distBetween = scipy.spatial.distance.euclidean(filledY, emptyY)
