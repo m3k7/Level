@@ -261,8 +261,6 @@ class OpticalLevel(object):
         backImage = np.uint8(np.median(backImage, axis=1))
         backImage = np.reshape(backImage, (backImage.shape[0], 1, 3))
         changes = scipy.spatial.distance.euclidean(backImage.reshape(backImage.shape[0]*backImage.shape[1]*3), self.rectifiedMedian.reshape(self.rectifiedMedian.shape[0]*self.rectifiedMedian.shape[1]*3))
-        print(changes)
-#         changes = 10
         if changes > 400:
             return self.val
         
@@ -282,99 +280,99 @@ class OpticalLevel(object):
             staticVal2 = np.argwhere(dilated[:,dilated.shape[1]/2])[-1][0]
             self.motionVal = staticVal2
 
-        if not self.motionVal:
-            if randint(0,20) == 0:
-                #delearn color detector
-                for y in range(self.rectified.shape[0]):
-                    self.colorMapEmpty[y, self.colorMapEmptyIndex[y]] = np.zeros((self.rectified.shape[1],3), dtype=np.ubyte)
-                    self.colorMapEmptyIndex[y] += 1
-                    self.colorMapEmptyIndex[y] %= self.colorMapDepth
-                    self.colorMapFilled[y, self.colorMapFilledIndex[y]] = np.zeros((self.rectified.shape[1],3), dtype=np.ubyte)
-                    self.colorMapFilledIndex[y] += 1
-                    self.colorMapFilledIndex[y] %= self.colorMapDepth
-                self.colorMapEmptyMedian = np.uint8(np.median(self.colorMapEmpty, axis=1))
-                self.colorMapFilledMedian = np.uint8(np.median(self.colorMapFilled, axis=1))
-        else:
-            #learn color detector            
-            for y in range(self.rectified.shape[0]):
-                if abs(y-self.motionVal)<5:
-                    continue
-                if (y<self.motionVal):
-                    colorMap = self.colorMapEmpty
-                    colorMapIndex = self.colorMapEmptyIndex
-                else:
-                    colorMap = self.colorMapFilled
-                    colorMapIndex = self.colorMapFilledIndex
-                colorMap[y, colorMapIndex[y]] = self.rectified[y] # self.rectified[y, int(self.rectified.shape[1]/2)] #(self.colorMap[y, state]*15 + self.rectified[y, self.rectified.shape[1]/2])/16
-                colorMapIndex[y] += 1
-                colorMapIndex[y] %= self.colorMapDepth
-            
-            self.colorMapEmptyMedian = np.uint8(np.median(self.colorMapEmpty, axis=1))
-            self.colorMapFilledMedian = np.uint8(np.median(self.colorMapFilled, axis=1))
-        
-        filledMask = np.zeros(self.rectCropSize[0], dtype=np.ubyte)
-        emptyYMedian = np.median(self.colorMapEmptyMedian, axis=0)
-        filledYMedian = np.median(self.colorMapFilledMedian, axis=0)
-#         imageMedian = np.median(self.rectified, axis=1)
-        
-        distBetween, distToEmpty, distToFilled = None, None, None
-        disp =  np.zeros((self.rectified.shape[0]), dtype=np.ubyte)
-        if True: #np.count_nonzero(emptyYMedian) > self.rectified.shape[0]/5 and np.count_nonzero(filledYMedian) > self.rectified.shape[0]/5:
-            for y in range(self.rectCropSize[0]):
-    
-                imageY = self.rectified[y]
-#                 imageMedianY = imageMedian[y]
-                
-#                 dispY = scipy.spatial.distance.cdist(imageY, imageMedianY)
-#                 imageMedianY = np.full_like(imageY, imageMedianY)
-                
-                
-                if (np.count_nonzero(self.colorMapEmptyMedian[y]) != 0):
-                    emptyY = self.colorMapEmptyMedian[y]
-                else:
-                    emptyY = emptyYMedian
-                    
-                if (np.count_nonzero(self.colorMapFilledMedian[y]) != 0):
-                    filledY = self.colorMapFilledMedian[y]
-                else:
-                    filledY = filledYMedian
-                
-                
-                
-                imageY = imageY.reshape(self.rectCropSize[1]*3)
-#                 imageMedianY = imageMedianY.reshape(self.rectCropSize[1]*3)
-                emptyY = emptyY.reshape(self.rectCropSize[1]*3)
-                filledY = filledY.reshape(self.rectCropSize[1]*3)
-#                 distBetween = scipy.spatial.distance.euclidean(filledY, emptyY)
-                distToEmpty = scipy.spatial.distance.euclidean(imageY, emptyY)
-                distToFilled = scipy.spatial.distance.euclidean(imageY, filledY)
-                
-#                 dispY = scipy.spatial.distance.euclidean(imageY, imageMedianY)
-#                 disp[y] = dispY
-#                 print(dispY)
-                    
-                #triangle check
-#                 if not distBetween or distToEmpty + distToFilled > distBetween*3:
+#         if not self.motionVal:
+#             if randint(0,20) == 0:
+#                 #delearn color detector
+#                 for y in range(self.rectified.shape[0]):
+#                     self.colorMapEmpty[y, self.colorMapEmptyIndex[y]] = np.zeros((self.rectified.shape[1],3), dtype=np.ubyte)
+#                     self.colorMapEmptyIndex[y] += 1
+#                     self.colorMapEmptyIndex[y] %= self.colorMapDepth
+#                     self.colorMapFilled[y, self.colorMapFilledIndex[y]] = np.zeros((self.rectified.shape[1],3), dtype=np.ubyte)
+#                     self.colorMapFilledIndex[y] += 1
+#                     self.colorMapFilledIndex[y] %= self.colorMapDepth
+#                 self.colorMapEmptyMedian = np.uint8(np.median(self.colorMapEmpty, axis=1))
+#                 self.colorMapFilledMedian = np.uint8(np.median(self.colorMapFilled, axis=1))
+#         else:
+#             #learn color detector            
+#             for y in range(self.rectified.shape[0]):
+#                 if abs(y-self.motionVal)<5:
 #                     continue
-                if distToEmpty > distToFilled:
-                    filledMask[y]=255
-          
-            filledMask = cv2.erode(filledMask, np.ones((25),np.uint8),iterations = 1)
-            filledMask = cv2.dilate(filledMask, np.ones((25),np.uint8),iterations = 1)
-            c = (0, 0, 255)
-            self.staticVal = self.rectified.shape[0]
-            for y in range(self.rectified.shape[0]):
-                if filledMask[y]:
-                    if self.staticVal == self.rectified.shape[0] and filledMask[int(y + (self.rectified.shape[0]-1-y)*0.3)]:
-                        self.staticVal = y
-                        cv2.circle(self.rectified, (0, y), 10, c)
-                        break
-         
-        self.imshow('imName', cv2.resize(disp, (80,800)))
-        self.imshow('colormap', np.concatenate((self.rectified*2, self.colorMapEmptyMedian*2, self.colorMapFilledMedian*2), axis=1))
+#                 if (y<self.motionVal):
+#                     colorMap = self.colorMapEmpty
+#                     colorMapIndex = self.colorMapEmptyIndex
+#                 else:
+#                     colorMap = self.colorMapFilled
+#                     colorMapIndex = self.colorMapFilledIndex
+#                 colorMap[y, colorMapIndex[y]] = self.rectified[y] # self.rectified[y, int(self.rectified.shape[1]/2)] #(self.colorMap[y, state]*15 + self.rectified[y, self.rectified.shape[1]/2])/16
+#                 colorMapIndex[y] += 1
+#                 colorMapIndex[y] %= self.colorMapDepth
+#             
+#             self.colorMapEmptyMedian = np.uint8(np.median(self.colorMapEmpty, axis=1))
+#             self.colorMapFilledMedian = np.uint8(np.median(self.colorMapFilled, axis=1))
+#         
+#         filledMask = np.zeros(self.rectCropSize[0], dtype=np.ubyte)
+#         emptyYMedian = np.median(self.colorMapEmptyMedian, axis=0)
+#         filledYMedian = np.median(self.colorMapFilledMedian, axis=0)
+# #         imageMedian = np.median(self.rectified, axis=1)
+#         
+#         distBetween, distToEmpty, distToFilled = None, None, None
+#         disp =  np.zeros((self.rectified.shape[0]), dtype=np.ubyte)
+#         if True: #np.count_nonzero(emptyYMedian) > self.rectified.shape[0]/5 and np.count_nonzero(filledYMedian) > self.rectified.shape[0]/5:
+#             for y in range(self.rectCropSize[0]):
+#     
+#                 imageY = self.rectified[y]
+# #                 imageMedianY = imageMedian[y]
+#                 
+# #                 dispY = scipy.spatial.distance.cdist(imageY, imageMedianY)
+# #                 imageMedianY = np.full_like(imageY, imageMedianY)
+#                 
+#                 
+#                 if (np.count_nonzero(self.colorMapEmptyMedian[y]) != 0):
+#                     emptyY = self.colorMapEmptyMedian[y]
+#                 else:
+#                     emptyY = emptyYMedian
+#                     
+#                 if (np.count_nonzero(self.colorMapFilledMedian[y]) != 0):
+#                     filledY = self.colorMapFilledMedian[y]
+#                 else:
+#                     filledY = filledYMedian
+#                 
+#                 
+#                 
+#                 imageY = imageY.reshape(self.rectCropSize[1]*3)
+# #                 imageMedianY = imageMedianY.reshape(self.rectCropSize[1]*3)
+#                 emptyY = emptyY.reshape(self.rectCropSize[1]*3)
+#                 filledY = filledY.reshape(self.rectCropSize[1]*3)
+# #                 distBetween = scipy.spatial.distance.euclidean(filledY, emptyY)
+#                 distToEmpty = scipy.spatial.distance.euclidean(imageY, emptyY)
+#                 distToFilled = scipy.spatial.distance.euclidean(imageY, filledY)
+#                 
+# #                 dispY = scipy.spatial.distance.euclidean(imageY, imageMedianY)
+# #                 disp[y] = dispY
+# #                 print(dispY)
+#                     
+#                 #triangle check
+# #                 if not distBetween or distToEmpty + distToFilled > distBetween*3:
+# #                     continue
+#                 if distToEmpty > distToFilled:
+#                     filledMask[y]=255
+#           
+#             filledMask = cv2.erode(filledMask, np.ones((25),np.uint8),iterations = 1)
+#             filledMask = cv2.dilate(filledMask, np.ones((25),np.uint8),iterations = 1)
+#             c = (0, 0, 255)
+#             self.staticVal = self.rectified.shape[0]
+#             for y in range(self.rectified.shape[0]):
+#                 if filledMask[y]:
+#                     if self.staticVal == self.rectified.shape[0] and filledMask[int(y + (self.rectified.shape[0]-1-y)*0.3)]:
+#                         self.staticVal = y
+#                         cv2.circle(self.rectified, (0, y), 10, c)
+#                         break
+#          
+#         self.imshow('imName', cv2.resize(disp, (80,800)))
+#         self.imshow('colormap', np.concatenate((self.rectified*2, self.colorMapEmptyMedian*2, self.colorMapFilledMedian*2), axis=1))
         
-        if self.staticVal != self.rectified.shape[0]:
-            self.val = self.val*0.90 + self.staticVal*0.10
+        if self.motionVal != self.rectified.shape[0]:
+            self.val = self.val*0.90 + self.motionVal*0.10
             self.levelF.write('{0}\n'.format(self.percent).encode())
 
         return self.val
