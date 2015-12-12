@@ -50,7 +50,8 @@ class DiffExtractor(object):
             back = self._backExt.get()
         self._counter += 1
         sobel = cv2.cvtColor(np.uint8(np.absolute(cv2.Sobel(cv2.absdiff(back,bluredFrame), cv2.CV_64F, 0, 1, ksize=5))), cv2.COLOR_BGR2GRAY)
-        diff = cv2.absdiff(back,bluredFrame)
+        cv2.imshow('sobel', sobel)
+#         diff = cv2.absdiff(back,bluredFrame)
         mask = cv2.inRange(sobel, 190, 255)
         dilated = cv2.dilate(mask, np.ones((20, 20),np.uint8),iterations = 1)
         dilated = cv2.erode(dilated, np.ones((5, 50),np.uint8),iterations = 1)
@@ -228,6 +229,8 @@ class OpticalLevel(object):
             return (1, 1, 1)
         self.colorCoef = (255, 255, 255) / white
         return self.colorCoef
+    
+#     def motionLevel(self, frame):
             
 #     @profile
     def meassure(self, frame):
@@ -243,7 +246,7 @@ class OpticalLevel(object):
             return self.val
         
         self.rectifiedFull = cv2.warpPerspective(frame, self.perspectiveTransform, self.rectSize)
-        self.rectifiedFull *= self.colorCalibration()
+#         self.rectifiedFull *= self.colorCalibration()
         self.imshow('rect', self.rectifiedFull)
         self.rectified = self.rectifiedFull[self.rectCrop[0]:self.rectCrop[1], self.rectCrop[2]:self.rectCrop[3]]
         self.rectifiedMedian = np.uint8(np.median(self.rectified, axis=1))
@@ -270,7 +273,14 @@ class OpticalLevel(object):
             self.motionVal = motionVal
             self.motionValPrev = motionVal
         else:
-            self.motionVal = None
+            l = cv2.cvtColor(np.uint8(np.absolute(cv2.Sobel(self.rectified, cv2.CV_64F, 2, 0, ksize=3))*0.4), cv2.COLOR_BGR2GRAY)
+            mask = cv2.inRange(l, 20, 255)
+            dilated = cv2.dilate(mask, np.ones((4, 10),np.uint8),iterations = 1)
+            dilated = cv2.erode(dilated, np.ones((25, 20),np.uint8),iterations = 1)
+            dilated = cv2.dilate(dilated, np.ones((self.rectified.shape[1]/2, 2),np.uint8),iterations = 4)
+            self.imshow('1', dilated)
+            staticVal2 = np.argwhere(dilated[:,dilated.shape[1]/2])[-1][0]
+            self.motionVal = staticVal2
 
         if not self.motionVal:
             if randint(0,20) == 0:
@@ -305,12 +315,20 @@ class OpticalLevel(object):
         filledMask = np.zeros(self.rectCropSize[0], dtype=np.ubyte)
         emptyYMedian = np.median(self.colorMapEmptyMedian, axis=0)
         filledYMedian = np.median(self.colorMapFilledMedian, axis=0)
+        imageMedian = np.median(self.rectified, axis=1)
+        
         distBetween, distToEmpty, distToFilled = None, None, None
+        disp =  np.zeros((self.rectified.shape[0]), dtype=np.ubyte)
         if True: #np.count_nonzero(emptyYMedian) > self.rectified.shape[0]/5 and np.count_nonzero(filledYMedian) > self.rectified.shape[0]/5:
             for y in range(self.rectCropSize[0]):
     
                 imageY = self.rectified[y]
-    
+                imageMedianY = imageMedian[y]
+                
+#                 dispY = scipy.spatial.distance.cdist(imageY, imageMedianY)
+                imageMedianY = np.full_like(imageY, imageMedianY)
+                
+                
                 if (np.count_nonzero(self.colorMapEmptyMedian[y]) != 0):
                     emptyY = self.colorMapEmptyMedian[y]
                 else:
@@ -321,12 +339,19 @@ class OpticalLevel(object):
                 else:
                     filledY = filledYMedian
                 
+                
+                
                 imageY = imageY.reshape(self.rectCropSize[1]*3)
+                imageMedianY = imageMedianY.reshape(self.rectCropSize[1]*3)
                 emptyY = emptyY.reshape(self.rectCropSize[1]*3)
                 filledY = filledY.reshape(self.rectCropSize[1]*3)
 #                 distBetween = scipy.spatial.distance.euclidean(filledY, emptyY)
                 distToEmpty = scipy.spatial.distance.euclidean(imageY, emptyY)
                 distToFilled = scipy.spatial.distance.euclidean(imageY, filledY)
+                
+#                 dispY = scipy.spatial.distance.euclidean(imageY, imageMedianY)
+#                 disp[y] = dispY
+#                 print(dispY)
                     
                 #triangle check
 #                 if not distBetween or distToEmpty + distToFilled > distBetween*3:
@@ -345,7 +370,8 @@ class OpticalLevel(object):
                         cv2.circle(self.rectified, (0, y), 10, c)
                         break
          
-        self.imshow('colormap', np.concatenate((self.colorMapEmptyMedian*3, self.colorMapFilledMedian*3), axis=1))
+        self.imshow('imName', cv2.resize(disp, (80,800)))
+        self.imshow('colormap', np.concatenate((self.rectified*2, self.colorMapEmptyMedian*2, self.colorMapFilledMedian*2), axis=1))
         
         if self.staticVal != self.rectified.shape[0]:
             self.val = self.val*0.90 + self.staticVal*0.10

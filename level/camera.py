@@ -18,6 +18,7 @@ class Camera(object):
             self.camera.resolution = np.array((2592, 1944))//self.resolutionDiv
             self.camera.framerate = self.framerate
             time.sleep(2)
+            self.camera.shutter_speed = 100000
             self.capture = picamera.array.PiRGBArray(self.camera)
         else:
             self.fn = kwargs.get('file', 0)
