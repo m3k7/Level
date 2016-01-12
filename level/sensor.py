@@ -50,14 +50,14 @@ class DiffExtractor(object):
             back = self._backExt.get()
         self._counter += 1
         sobel = cv2.cvtColor(np.uint8(np.absolute(cv2.Sobel(cv2.absdiff(back,bluredFrame), cv2.CV_64F, 0, 1, ksize=5))), cv2.COLOR_BGR2GRAY)
-#         cv2.imshow('sobel', sobel)
+#        cv2.imshow('sobel', sobel)
 #         diff = cv2.absdiff(back,bluredFrame)
-        mask = cv2.inRange(sobel, 190, 255)
+        mask = cv2.inRange(sobel, 100, 255)
         dilated = cv2.dilate(mask, np.ones((20, 20),np.uint8),iterations = 1)
         dilated = cv2.erode(dilated, np.ones((5, 50),np.uint8),iterations = 1)
         
-#         cv2.imshow('background', np.concatenate((back, bluredFrame, diff), axis=1))
-#         cv2.imshow('mask', np.concatenate((sobel, mask, dilated), axis=1))
+#        cv2.imshow('background', np.concatenate((back, bluredFrame, diff), axis=1))
+#        cv2.imshow('mask', np.concatenate((sobel, mask, dilated), axis=1))
         
         return dilated
     
@@ -190,7 +190,7 @@ class OpticalLevel(object):
             else:
                 basicPoints.append(p)
                 
-        self.imshow('cframe', cFrame)
+        #self.imshow('cframe', cFrame)
         print(basicPoints)
         if len(basicPoints) != 4:
             return None
@@ -239,7 +239,7 @@ class OpticalLevel(object):
         
         self.frameCounter += 1
         self.frame = frame
-        if not self.calibrated or self.frameCounter % 200 == 10:
+        if not self.calibrated: # or self.frameCounter % 200 == 10:
             self.calibrate()
 
         if not self.calibrated:
@@ -253,7 +253,7 @@ class OpticalLevel(object):
         self.rectifiedMedian = np.reshape(self.rectifiedMedian, (self.rectifiedMedian.shape[0], 1, 3))
         
         diff = self.diffExtractor.extract(cv2.blur(self.rectified, (10,1)))
-        diff = np.uint8(np.median(diff, axis=1))
+#        diff = np.uint8(np.median(diff, axis=1))
 #         diff = np.reshape(diff, (diff.shape[0], 1))
                 
         #check for huge image changes
