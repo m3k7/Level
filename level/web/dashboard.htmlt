@@ -1,20 +1,24 @@
-<META HTTP-EQUIV="refresh" CONTENT="5">
-
-<table border="1">
+<form>
+<table border="0">
 <tr>
-	<td rowspan="5"><img src=./?rectified=1 id="rectifiedImage"></td></td>
-	<td><font color="green"><b>Sensor state: {{ sensor.state }}</b></font></td>
-</tr>
-<tr>
-	<td>Sensor ID: АДУ-3</td>
-</tr>
-<tr>
-	<td>Level: {{ '{0:2.1f}'.format(sensor.percent) }} %</td>
-</tr>
-<tr>
-	<td>Temperature: {{ 'Not avail' }}</td>
-</tr>
-<tr>
-	<td>Humidity: {{ 'Not avail' }}</td>
-</tr>
-</table.
+	<td rowspan=1><image src=./?mjpeg=1></td>
+	<td valign="top"><table>
+		<tr><td>Идентификатор:</td></tr>
+		<tr><td align="right"><input type="text" name="name" value="АДУ-3"/></td></tr>
+		<tr><td></td></tr>
+		<tr><td>Коррекция верхней границы, px:</td></tr>
+		<tr><td align="right"><input type="number" step="1" name="upper_shift" min="0" max="100" value="0"/></td></tr>
+		<tr><td></td></tr>
+		<tr><td>Коррекция нижней границы, px:</td></tr>
+		<tr><td align="right"><input type="number" step="1" name="lower_shift" min="0" max="100" value="0"/></td></tr>
+		<tr><td></td></tr>
+		<tr><td>Ширина захвата, %:</td></tr>
+		<tr><td align="right"><input type="number" step="1" name="width" min="30" max="100" value="60"/></td></tr>
+		<tr><td></td></tr>
+		<tr><td>Пароль:</td></tr>
+		<tr><td align="right"><input type="password" name="password" value=""/></td></tr>
+		<tr><td></td></tr>
+		<tr><td align="right"><input type="submit" formmethod="post" value="Применить"/></td></tr>
+	</table></td>
+</table>
+</form>

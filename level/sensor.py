@@ -19,15 +19,14 @@ class DiffExtractor(object):
         def apply(self, frame):
             medianDepth = 40
             if self._back != None:
-                assert(self._back.shape == frame.shape)
-#                 self._seq = np.append(self._seq, [frame], axis=0)
+                if self._back.shape != frame.shape:
+                    self._back = None
+                    self.apply(frame)
                 if self._seq.shape[0] < medianDepth:
                     self._seq = np.append(self._seq, [frame], axis=0)
                 else:
                     self._seq[self._seqN] = frame
-#                     np.delete(self._seq, 0, 0)
                 self._back = np.uint8(np.median(self._seq, axis=0))
-#                 self._back = np.uint8((np.float16(self._back)*9+np.float16(frame)) / 10)
             else:
                 self._back = frame.copy()
                 self._seq = np.array([self._back])
@@ -56,8 +55,8 @@ class DiffExtractor(object):
         dilated = cv2.dilate(mask, np.ones((20, 20),np.uint8),iterations = 1)
         dilated = cv2.erode(dilated, np.ones((5, 50),np.uint8),iterations = 1)
         
-#        cv2.imshow('background', np.concatenate((back, bluredFrame, diff), axis=1))
-#        cv2.imshow('mask', np.concatenate((sobel, mask, dilated), axis=1))
+#         cv2.imshow('background', np.concatenate((back, bluredFrame, diff), axis=1))
+#         cv2.imshow('mask', np.concatenate((sobel, mask, dilated), axis=1))
         
         return dilated
     
@@ -70,8 +69,6 @@ class OpticalLevel(object):
         self.xMode = (kwargs.get('xmode', 'False') == 'True')
         self.piMode = (kwargs.get('pimode', 'True') == 'True')
         self.videoFn = kwargs.get('videofn')
-        self.upperBound = float(kwargs.get('upperbound', '0'))
-        self.lowerbound = float(kwargs.get('lowerbound', '1'))
         
         if self.piMode:
             self.camera = Camera(pi_camera=self.piMode)
@@ -80,6 +77,7 @@ class OpticalLevel(object):
         self.stream = self.camera.stream()
         
         self.val = 0
+        self.motionValCounter = 0
         self.frameCounter = 0
         self.staticVal = None
         self.motionVal = None
@@ -89,13 +87,11 @@ class OpticalLevel(object):
         self.diffExtractor = DiffExtractor()
         self.sampleFrame = None
         
-        self.rectSize = (200,800)
-        self.correctedRectSize = (200, 600)
-        self.rectCrop = (int(self.rectSize[1]*0), int(self.rectSize[1]), int(self.rectSize[0]*0.4), int(self.rectSize[0]*0.6))
-        self.rectCropSize = (self.rectCrop[1] - self.rectCrop[0], self.rectCrop[3] - self.rectCrop[2])
+        self.rectSize = (250,900)
+        self.setRectCrop(10, 10, 60)
         
-        self.perspectiveTransformPointsTo = np.array([(self.rectSize[0], self.rectSize[1]*self.lowerbound), (0, self.rectSize[1]*self.lowerbound), 
-                                                      (self.rectSize[0], self.rectSize[1]*self.upperBound), (0, self.rectSize[1]*self.upperBound)], dtype=np.float32)
+        self.perspectiveTransformPointsTo = np.array([(self.rectSize[0], self.rectSize[1]), (0, self.rectSize[1]), 
+                                                      (self.rectSize[0], 0), (0, 0)], dtype=np.float32)
         
         self.perspectiveTransformPointsFrom = eval(kwargs.get('calibrationpoints', 'None'))
         if self.perspectiveTransformPointsFrom:
@@ -118,6 +114,10 @@ class OpticalLevel(object):
         self.levelF = open('/tmp/level.val', 'wb', 0)
         self.levelF.write(b'STARTED\n')
         
+    def setRectCrop(self, upper, lower, width):
+        self.rectCrop = (int(upper), int(self.rectSize[1]-lower), int(self.rectSize[0]/2-width/2-10), int(self.rectSize[0]/2+width/2-10))
+        self.rectCropSize = (self.rectCrop[1] - self.rectCrop[0], self.rectCrop[3] - self.rectCrop[2])
+        
     def imshow(self, imName, image):
         if self.xMode:
             cv2.imshow(imName, image)
@@ -133,9 +133,10 @@ class OpticalLevel(object):
         self.sampleFrame = self.rectifiedFull.copy()
 
         toX = self.sampleFrame.shape[1]#-self.sampleFrame.shape[1]
-        toY = self.sampleFrame.shape[0]
+        toY = self.rectCrop[0]
+        fromY = self.rectCrop[1]
         for i in range(101):
-            y = int(toY - i*(toY)/100)
+            y = int(fromY + i*(toY-fromY)/100)
             w=20
             if i%5==0:
                 w+=10
@@ -146,7 +147,12 @@ class OpticalLevel(object):
 #         if expertVal:
 #             cv2.line(self.sampleFrame, (toX-self.rectSize[0], int(self.toY-expertVal*(self.toY-self.fromY)/100)), (toX, int(self.toY-expertVal*(self.toY-self.fromY)/100)), (0, 255, 255))
 #             cv2.putText(self.sampleFrame, 'dV = {0:2.1f} %'.format(self.val-expertVal),(280, 880), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,0,0),2,cv2.LINE_AA)
-        cv2.line(self.sampleFrame, (toX-self.rectSize[0], int(self.val)), (toX, int(self.val)), (255, 255, 0))
+        for line in (((self.rectCrop[2], self.rectCrop[0]),(self.rectCrop[3], self.rectCrop[0])),
+                     ((self.rectCrop[3], self.rectCrop[0]),(self.rectCrop[3], self.rectCrop[1])),
+                     ((self.rectCrop[3], self.rectCrop[1]),(self.rectCrop[2], self.rectCrop[1])),
+                     ((self.rectCrop[2], self.rectCrop[1]),(self.rectCrop[2], self.rectCrop[0]))):
+            cv2.line(self.sampleFrame, line[0], line[1], (0, 255, 255))
+        cv2.line(self.sampleFrame, (toX-self.rectSize[0], int(self.val)+self.rectCrop[0]), (toX, int(self.val)+self.rectCrop[0]), (255, 255, 0))
 #         cv2.putText(self.sampleFrame, 'V={0:2.1f} %'.format(self.percent),(10, self.sampleFrame.shape[0]-100), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,255,0),2,cv2.LINE_AA)
 #         cv2.putText(self.sampleFrame, 'CCF={0}'.format(self.colorCoef),(10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,255,0),2,cv2.LINE_AA)
         return self.sampleFrame #cv2.resize(self.sampleFrame, (int(self.sampleFrame.shape[1]/2), int(self.sampleFrame.shape[0]/2)))
@@ -249,28 +255,29 @@ class OpticalLevel(object):
 #         self.rectifiedFull *= self.colorCalibration()
         self.imshow('rect', self.rectifiedFull)
         self.rectified = self.rectifiedFull[self.rectCrop[0]:self.rectCrop[1], self.rectCrop[2]:self.rectCrop[3]]
-        self.rectifiedMedian = np.uint8(np.median(self.rectified, axis=1))
-        self.rectifiedMedian = np.reshape(self.rectifiedMedian, (self.rectifiedMedian.shape[0], 1, 3))
+#         self.rectifiedMedian = np.uint8(np.median(self.rectified, axis=1))
+#         self.rectifiedMedian = np.reshape(self.rectifiedMedian, (self.rectifiedMedian.shape[0], 1, 3))
         
         diff = self.diffExtractor.extract(cv2.blur(self.rectified, (10,1)))
-#        diff = np.uint8(np.median(diff, axis=1))
 #         diff = np.reshape(diff, (diff.shape[0], 1))
                 
         #check for huge image changes
         backImage = self.diffExtractor.getBackImage()
         backImage = np.uint8(np.median(backImage, axis=1))
         backImage = np.reshape(backImage, (backImage.shape[0], 1, 3))
-        changes = scipy.spatial.distance.euclidean(backImage.reshape(backImage.shape[0]*backImage.shape[1]*3), self.rectifiedMedian.reshape(self.rectifiedMedian.shape[0]*self.rectifiedMedian.shape[1]*3))
-        if changes > 400:
-            return self.val
+#         changes = scipy.spatial.distance.euclidean(backImage.reshape(backImage.shape[0]*backImage.shape[1]*3), self.rectifiedMedian.reshape(self.rectifiedMedian.shape[0]*self.rectifiedMedian.shape[1]*3))
+#         if changes > 500:
+#             return self.val
         
         m = cv2.moments(diff, 1)
         if m['m00']:
             motionVal = m['m01']/m['m00']
-#             if self.motionValPrev==None: # or abs(self.motionValPrev - motionVal) < diff.shape[0]/5: 
             self.motionVal = motionVal
             self.motionValPrev = motionVal
+            self.motionValCounter = 0
         else:
+            self.motionVal = None
+            self.motionValCounter += 1
             l = cv2.cvtColor(np.uint8(np.absolute(cv2.Sobel(self.rectified, cv2.CV_64F, 2, 0, ksize=3))*0.4), cv2.COLOR_BGR2GRAY)
             mask = cv2.inRange(l, 20, 255)
             dilated = cv2.dilate(mask, np.ones((4, 10),np.uint8),iterations = 1)
@@ -280,116 +287,24 @@ class OpticalLevel(object):
             indexes = np.argwhere(dilated[:,dilated.shape[1]/2])
             if indexes.any():
                 staticVal2 = np.argwhere(dilated[:,dilated.shape[1]/2])[-1][0]
-                self.motionVal = staticVal2
+                self.staticVal = staticVal2
             else:
-                self.motionVal = 0
-
-#         if not self.motionVal:
-#             if randint(0,20) == 0:
-#                 #delearn color detector
-#                 for y in range(self.rectified.shape[0]):
-#                     self.colorMapEmpty[y, self.colorMapEmptyIndex[y]] = np.zeros((self.rectified.shape[1],3), dtype=np.ubyte)
-#                     self.colorMapEmptyIndex[y] += 1
-#                     self.colorMapEmptyIndex[y] %= self.colorMapDepth
-#                     self.colorMapFilled[y, self.colorMapFilledIndex[y]] = np.zeros((self.rectified.shape[1],3), dtype=np.ubyte)
-#                     self.colorMapFilledIndex[y] += 1
-#                     self.colorMapFilledIndex[y] %= self.colorMapDepth
-#                 self.colorMapEmptyMedian = np.uint8(np.median(self.colorMapEmpty, axis=1))
-#                 self.colorMapFilledMedian = np.uint8(np.median(self.colorMapFilled, axis=1))
-#         else:
-#             #learn color detector            
-#             for y in range(self.rectified.shape[0]):
-#                 if abs(y-self.motionVal)<5:
-#                     continue
-#                 if (y<self.motionVal):
-#                     colorMap = self.colorMapEmpty
-#                     colorMapIndex = self.colorMapEmptyIndex
-#                 else:
-#                     colorMap = self.colorMapFilled
-#                     colorMapIndex = self.colorMapFilledIndex
-#                 colorMap[y, colorMapIndex[y]] = self.rectified[y] # self.rectified[y, int(self.rectified.shape[1]/2)] #(self.colorMap[y, state]*15 + self.rectified[y, self.rectified.shape[1]/2])/16
-#                 colorMapIndex[y] += 1
-#                 colorMapIndex[y] %= self.colorMapDepth
-#             
-#             self.colorMapEmptyMedian = np.uint8(np.median(self.colorMapEmpty, axis=1))
-#             self.colorMapFilledMedian = np.uint8(np.median(self.colorMapFilled, axis=1))
-#         
-#         filledMask = np.zeros(self.rectCropSize[0], dtype=np.ubyte)
-#         emptyYMedian = np.median(self.colorMapEmptyMedian, axis=0)
-#         filledYMedian = np.median(self.colorMapFilledMedian, axis=0)
-# #         imageMedian = np.median(self.rectified, axis=1)
-#         
-#         distBetween, distToEmpty, distToFilled = None, None, None
-#         disp =  np.zeros((self.rectified.shape[0]), dtype=np.ubyte)
-#         if True: #np.count_nonzero(emptyYMedian) > self.rectified.shape[0]/5 and np.count_nonzero(filledYMedian) > self.rectified.shape[0]/5:
-#             for y in range(self.rectCropSize[0]):
-#     
-#                 imageY = self.rectified[y]
-# #                 imageMedianY = imageMedian[y]
-#                 
-# #                 dispY = scipy.spatial.distance.cdist(imageY, imageMedianY)
-# #                 imageMedianY = np.full_like(imageY, imageMedianY)
-#                 
-#                 
-#                 if (np.count_nonzero(self.colorMapEmptyMedian[y]) != 0):
-#                     emptyY = self.colorMapEmptyMedian[y]
-#                 else:
-#                     emptyY = emptyYMedian
-#                     
-#                 if (np.count_nonzero(self.colorMapFilledMedian[y]) != 0):
-#                     filledY = self.colorMapFilledMedian[y]
-#                 else:
-#                     filledY = filledYMedian
-#                 
-#                 
-#                 
-#                 imageY = imageY.reshape(self.rectCropSize[1]*3)
-# #                 imageMedianY = imageMedianY.reshape(self.rectCropSize[1]*3)
-#                 emptyY = emptyY.reshape(self.rectCropSize[1]*3)
-#                 filledY = filledY.reshape(self.rectCropSize[1]*3)
-# #                 distBetween = scipy.spatial.distance.euclidean(filledY, emptyY)
-#                 distToEmpty = scipy.spatial.distance.euclidean(imageY, emptyY)
-#                 distToFilled = scipy.spatial.distance.euclidean(imageY, filledY)
-#                 
-# #                 dispY = scipy.spatial.distance.euclidean(imageY, imageMedianY)
-# #                 disp[y] = dispY
-# #                 print(dispY)
-#                     
-#                 #triangle check
-# #                 if not distBetween or distToEmpty + distToFilled > distBetween*3:
-# #                     continue
-#                 if distToEmpty > distToFilled:
-#                     filledMask[y]=255
-#           
-#             filledMask = cv2.erode(filledMask, np.ones((25),np.uint8),iterations = 1)
-#             filledMask = cv2.dilate(filledMask, np.ones((25),np.uint8),iterations = 1)
-#             c = (0, 0, 255)
-#             self.staticVal = self.rectified.shape[0]
-#             for y in range(self.rectified.shape[0]):
-#                 if filledMask[y]:
-#                     if self.staticVal == self.rectified.shape[0] and filledMask[int(y + (self.rectified.shape[0]-1-y)*0.3)]:
-#                         self.staticVal = y
-#                         cv2.circle(self.rectified, (0, y), 10, c)
-#                         break
-#          
-#         self.imshow('imName', cv2.resize(disp, (80,800)))
-#         self.imshow('colormap', np.concatenate((self.rectified*2, self.colorMapEmptyMedian*2, self.colorMapFilledMedian*2), axis=1))
+                self.staticVal = None
         
-        if self.motionVal != self.rectified.shape[0]:
-            if self.val != None:
-                self.val = self.val*0.90 + self.motionVal*0.10
-            else:
-                self.val = self.motionVal
+        val = None
+        if self.motionVal != None:
+            val = self.motionVal
+        elif self.motionValCounter > 20:
+            val = self.staticVal
+        if val != None:
+            self.val = self.val*0.90 + val*0.10
             self.levelF.write('{0}\n'.format(self.percent).encode())
 
         return self.val
-
-    def rectYToVal(self, rectY):
-        return 100-(rectY)*100/self.rectified.shape[0]
             
     @property
     def percent(self):
-        return 100 - (self.val*100) / self.rectifiedFull.shape[0]
+        return (self.rectCrop[1]-self.val)*100 / self.rectCropSize[0]
     
     @property
     def state(self):
