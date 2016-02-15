@@ -49,13 +49,13 @@ class HttpFace(HttpTemplateRequestHandler):
         
         self.set_status(200)
         args = dict()
-        for arg in ('name', 'width', 'upper_shift', 'lower_shift', 'password'):
+        for arg in ('name', 'width', 'upper_shift', 'x_shift', 'lower_shift', 'password'):
             if not arg in self.request.arguments:
                 self.write('Bad request')
                 self.finish()
                 return
             val = self.request.arguments[arg][0].decode()
-            if arg in ('width', 'upper_shift', 'lower_shift') and int(val) <= 0:
+            if arg in ('width', 'upper_shift', 'lower_shift') and int(val) < 0:
                 self.write('Ошибка. Отрицательное значение неприменимо.')
                 self.finish()
                 return
@@ -65,7 +65,7 @@ class HttpFace(HttpTemplateRequestHandler):
                 self.finish()
                 return
         
-        self.sensor.setRectCrop(int(args['upper_shift']), int(args['lower_shift']), int(args['width']))
+        self.sensor.setRectCrop(int(args['upper_shift']), int(args['lower_shift']), int(args['x_shift']), int(args['width']))
         self.write('Данные приняты')
         self.finish()
         

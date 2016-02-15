@@ -88,7 +88,7 @@ class OpticalLevel(object):
         self.sampleFrame = None
         
         self.rectSize = (250,900)
-        self.setRectCrop(10, 10, 60)
+        self.setRectCrop(0, 0, 0, 60)
         
         self.perspectiveTransformPointsTo = np.array([(self.rectSize[0], self.rectSize[1]), (0, self.rectSize[1]), 
                                                       (self.rectSize[0], 0), (0, 0)], dtype=np.float32)
@@ -114,8 +114,8 @@ class OpticalLevel(object):
         self.levelF = open('/tmp/level.val', 'wb', 0)
         self.levelF.write(b'STARTED\n')
         
-    def setRectCrop(self, upper, lower, width):
-        self.rectCrop = (int(upper), int(self.rectSize[1]-lower), int(self.rectSize[0]/2-width/2-10), int(self.rectSize[0]/2+width/2-10))
+    def setRectCrop(self, upper, lower, x_shift, width):
+        self.rectCrop = (int(upper), int(self.rectSize[1]-lower), int(self.rectSize[0]/2-width/2+x_shift), int(self.rectSize[0]/2+width/2+x_shift))
         self.rectCropSize = (self.rectCrop[1] - self.rectCrop[0], self.rectCrop[3] - self.rectCrop[2])
         
     def imshow(self, imName, image):
@@ -265,9 +265,9 @@ class OpticalLevel(object):
         backImage = self.diffExtractor.getBackImage()
         backImage = np.uint8(np.median(backImage, axis=1))
         backImage = np.reshape(backImage, (backImage.shape[0], 1, 3))
-#         changes = scipy.spatial.distance.euclidean(backImage.reshape(backImage.shape[0]*backImage.shape[1]*3), self.rectifiedMedian.reshape(self.rectifiedMedian.shape[0]*self.rectifiedMedian.shape[1]*3))
-#         if changes > 500:
-#             return self.val
+        changes = np.average(np.reshape(diff, (diff.size, 1))) #scipy.spatial.distance.euclidean(backImage.reshape(backImage.shape[0]*backImage.shape[1]*3), 
+        if changes > 30:
+            return self.val
         
         m = cv2.moments(diff, 1)
         if m['m00']:
