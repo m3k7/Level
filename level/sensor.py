@@ -48,17 +48,17 @@ class DiffExtractor(object):
         else:
             back = self._backExt.get()
         self._counter += 1
-        sobel = cv2.cvtColor(np.uint8(np.absolute(cv2.Sobel(cv2.absdiff(back,bluredFrame), cv2.CV_64F, 0, 1, ksize=5))), cv2.COLOR_BGR2GRAY)
+#         sobel = cv2.cvtColor(np.uint8(np.absolute(cv2.Sobel(cv2.absdiff(back,bluredFrame), cv2.CV_64F, 0, 1, ksize=5))), cv2.COLOR_BGR2GRAY)
 #        cv2.imshow('sobel', sobel)
-#         diff = cv2.absdiff(back,bluredFrame)
-        mask = cv2.inRange(sobel, 100, 255)
-        dilated = cv2.dilate(mask, np.ones((20, 20),np.uint8),iterations = 1)
-        dilated = cv2.erode(dilated, np.ones((5, 50),np.uint8),iterations = 1)
+        diff = cv2.absdiff(back,bluredFrame)
+#         mask = cv2.inRange(sobel, 100, 255)
+#         dilated = cv2.dilate(mask, np.ones((20, 20),np.uint8),iterations = 1)
+#         dilated = cv2.erode(dilated, np.ones((5, 50),np.uint8),iterations = 1)
         
 #         cv2.imshow('background', np.concatenate((back, bluredFrame, diff), axis=1))
-#         cv2.imshow('mask', np.concatenate((sobel, mask, dilated), axis=1))
+        cv2.imshow('DIFF', diff)
         
-        return dilated
+        return diff
     
     def getBackImage(self):
         return self._backExt.get()
@@ -258,15 +258,20 @@ class OpticalLevel(object):
 #         self.rectifiedMedian = np.uint8(np.median(self.rectified, axis=1))
 #         self.rectifiedMedian = np.reshape(self.rectifiedMedian, (self.rectifiedMedian.shape[0], 1, 3))
         
-        diff = self.diffExtractor.extract(cv2.blur(self.rectified, (10,1)))
+        b = cv2.GaussianBlur(self.rectified, (3, 3), 0)
+        g = cv2.cvtColor(b, cv2.COLOR_BGR2GRAY)
+        diff = self.diffExtractor.extract(g)
+        m = np.amax(diff)
+        diff = cv2.inRange(diff, int(m)*0.7, 255)
+        self.imshow('g', diff)
 #         diff = np.reshape(diff, (diff.shape[0], 1))
                 
         #check for huge image changes
-        backImage = self.diffExtractor.getBackImage()
-        backImage = np.uint8(np.median(backImage, axis=1))
-        backImage = np.reshape(backImage, (backImage.shape[0], 1, 3))
+#         backImage = self.diffExtractor.getBackImage()
+#         backImage = np.uint8(np.median(backImage, axis=1))
+#         backImage = np.reshape(backImage, (backImage.shape[0], 1, 3))
         changes = np.average(np.reshape(diff, (diff.size, 1))) #scipy.spatial.distance.euclidean(backImage.reshape(backImage.shape[0]*backImage.shape[1]*3), 
-        if changes > 30:
+        if changes > 0.5:
             return self.val
         
         m = cv2.moments(diff, 1)

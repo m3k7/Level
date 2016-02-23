@@ -21,7 +21,16 @@ class HttpFace(HttpTemplateRequestHandler):
     def get(self, *args):
         
         self.set_status(200)
-        if 'mjpeg' in self.request.arguments:
+        if 'rectified' in self.request.arguments:
+            ret, jpeg = cv2.imencode('.jpg', self.sensor.getSampleFrame())
+            if ret:
+                self.set_header('Content-Type', 'multipart/x-mixed-replace; boundary=frame')
+            self.set_header("Content-type",  "image/png")
+            ans = jpeg.tostring()
+            ans = b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + jpeg.tostring() + b'\r\n\r\n'
+            ans = jpeg.tostring()
+            self.write(ans)
+        elif 'mjpeg' in self.request.arguments:
             self.set_header('Cache-Control', 'no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0')
             self.set_header('Connection', 'keep-alive')
             boundary = '--boundarydonotcross'
