@@ -56,7 +56,6 @@ class DiffExtractor(object):
 #         dilated = cv2.erode(dilated, np.ones((5, 50),np.uint8),iterations = 1)
         
 #         cv2.imshow('background', np.concatenate((back, bluredFrame, diff), axis=1))
-        cv2.imshow('DIFF', diff)
         
         return diff
     
